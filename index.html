@@ -9,6 +9,7 @@
     <meta name="description" content="Measure the exact audio delay (latency) of your Bluetooth headphones, speakers, or mobile device. Free online audio/video synchronization test tool for accurate A/V sync readings.">
     <meta name="keywords" content="bluetooth headphone audio delay testing, audio latency test, av sync test, bluetooth lag test, headphone delay test, audio video sync, sound delay, speaker latency">
     <meta name="robots" content="index, follow">
+    <meta name="google-site-verification" content="JiYBf2cc_eT18Vu4k8E-hab5aZDDEbUK4QEKGPTwezs" />
     
     <!-- Open Graph / Social -->
     <meta property="og:type" content="website">
@@ -365,6 +366,10 @@
             overlay.style.opacity = '0';
             setTimeout(() => overlay.style.display = 'none', 300);
             
+            // NOTE: We do NOT clear userHits here anymore.
+            // userHits = []; 
+            
+            // Reset timing relative to now
             nextNoteTime = audioCtx.currentTime + 0.1;
             
             resize(); 
