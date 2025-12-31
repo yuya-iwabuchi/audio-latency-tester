@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- SEO & Metadata -->
+    <title>Audio Latency Tester - Bluetooth Headphone Delay Test</title>
+    <meta name="description" content="Measure the exact audio delay (latency) of your Bluetooth headphones, speakers, or mobile device. Free online audio/video synchronization test tool for accurate A/V sync readings.">
+    <meta name="keywords" content="bluetooth headphone audio delay testing, audio latency test, av sync test, bluetooth lag test, headphone delay test, audio video sync, sound delay, speaker latency">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Audio Latency Tester - Bluetooth Headphone Delay Test">
+    <meta property="og:description" content="Measure the exact audio delay (latency) of your Bluetooth headphones or speakers. Free online tool.">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000000;
+            color: #e2e8f0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: none; /* Prevent zoom/scroll on mobile */
+        }
+        canvas {
+            /* Hardware acceleration */
+            transform: translateZ(0); 
+            display: block;
+        }
+        .control-panel {
+            backdrop-filter: blur(12px);
+            background-color: rgba(15, 23, 42, 0.85); /* Slate 900 with opacity */
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: env(safe-area-inset-bottom); /* Handle iPhone Home Bar */
+        }
+        
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            margin-top: -7px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+        .attribution a {
+            transition: color 0.2s;
+        }
+        .attribution a:hover {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative">
+
+    <!-- Canvas Background -->
+    <canvas id="syncCanvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+    
+    <!-- Attribution -->
+    <div class="absolute top-4 left-4 z-20 text-xs text-slate-500 font-mono attribution flex items-center gap-3">
+        <span>Created by</span>
+        <a href="https://github.com/yuya-iwabuchi/audio-latency-tester" target="_blank" class="flex items-center gap-1.5 hover:text-sky-400 transition-colors" title="View Project on GitHub">
+            <!-- GitHub Icon -->
+            <svg class="h-4 w-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            <span>Yuya Iwabuchi</span>
+        </a>
+        <a href="https://www.linkedin.com/in/yuyai" target="_blank" class="flex items-center gap-1.5 hover:text-sky-400 transition-colors" title="Connect on LinkedIn">
+            <!-- LinkedIn Icon -->
+            <svg class="h-4 w-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+        </a>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="startOverlay" class="absolute inset-0 flex items-center justify-center bg-black/90 z-40 transition-opacity duration-300 p-4">
+        <div class="text-center p-6 md:p-8 border border-white/10 rounded-2xl bg-slate-900/90 shadow-2xl backdrop-blur-xl max-w-lg w-full">
+            <div class="mb-6 text-sky-400 flex justify-center">
+                <!-- Headphone Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 md:h-20 md:w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-bold text-white mb-3">Audio Latency Tester</h1>
+            <p class="text-slate-400 mb-8 mx-auto leading-relaxed text-sm md:text-base">
+                Measure the exact audio delay of your current device.
+                <br><br>
+                <span class="text-slate-300">For accurate results, <strong>close your eyes</strong> and tap <strong>Mark</strong> (or Space) when you hear the beep. Repeat 10+ times.</span>
+            </p>
+            <button id="startBtn" class="w-full md:w-auto px-8 py-4 md:py-3 bg-sky-500 hover:bg-sky-400 text-white rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-sky-500/30 flex items-center justify-center gap-2 mx-auto">
+                <span>Start Test</span>
+                <span class="hidden md:inline text-xs bg-black/20 px-2 py-0.5 rounded text-white/80 font-mono">S</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="control-panel fixed bottom-0 w-full p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 items-center justify-between z-30">
+        
+        <!-- Mobile Layout: Top row is main actions (Mark/Clear/Stop) -->
+        <div class="flex items-center justify-between w-full md:w-auto md:justify-center gap-2 md:order-2 md:flex-1">
+             <!-- Mark Button -->
+             <button id="triggerHitBtn" class="flex-1 md:flex-none h-14 md:h-12 md:w-32 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 hover:text-emerald-300 transition-all active:scale-95 flex flex-col items-center justify-center leading-none group">
+                <div class="flex items-center gap-1.5 mb-1">
+                    <!-- Centered Bullseye Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+                    </svg>
+                    <span class="font-bold text-sm">Mark</span>
+                </div>
+                <span class="hidden md:inline font-mono text-[10px] bg-emerald-950/50 px-1.5 py-0.5 rounded text-emerald-300/80 border border-emerald-500/20">SPACE</span>
+            </button>
+
+            <!-- Clear Button -->
+            <button id="clearHitsBtn" class="h-14 md:h-12 w-16 md:w-24 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 transition-all active:scale-95 flex flex-col items-center justify-center leading-none">
+                <div class="flex items-center gap-1.5 mb-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="hidden md:inline font-bold text-sm">Clear</span>
+                </div>
+                <span class="hidden md:inline font-mono text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-slate-400 border border-white/5">C</span>
+            </button>
+
+            <!-- Play/Pause Button (Dynamic) -->
+             <button id="playPauseBtn" class="h-14 md:h-12 px-4 md:px-6 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-400 hover:text-red-300 transition-all active:scale-95 flex flex-col items-center justify-center leading-none">
+                <!-- Content injected via JS -->
+            </button>
+        </div>
+
+        <!-- Desktop: Sliders on Left / Mobile: Sliders on Bottom -->
+        <div class="flex items-center justify-between md:justify-start gap-4 w-full md:w-auto md:order-1">
+            <div class="flex flex-col flex-1 md:flex-none">
+                <label class="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Interval</label>
+                <div class="flex items-center gap-3">
+                    <input type="range" id="intervalSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full md:w-32">
+                    <span class="text-white font-mono font-bold text-sm md:text-lg w-10 text-right" id="intervalDisplay">1.0s</span>
+                </div>
+            </div>
+            
+            <div class="hidden md:block h-10 w-px bg-slate-700 mx-2"></div>
+
+            <div class="flex flex-col w-20 md:w-auto">
+                 <label class="text-[10px] md:text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Volume</label>
+                 <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" class="w-full md:w-24">
+            </div>
+        </div>
+
+        <!-- Desktop Right Spacer (keeps center buttons centered) -->
+        <div class="hidden md:block w-auto md:order-3 md:w-1/3"></div>
+
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const config = {
+            interval: 1.0,      // Seconds between beats
+            beepFreq: 1000,     // Hz
+            beepDuration: 0.05, // Seconds
+            lookahead: 0.1,     // Audio scheduling lookahead
+            volume: 0.5,
+            showBeep: true,
+            showBall: true
+        };
+
+        // --- State ---
+        let audioCtx;
+        let nextNoteTime = 0.0;
+        let isPlaying = false;
+        let userHits = []; // Array of delay values (ms)
+        
+        // --- Canvas Setup ---
+        const canvas = document.getElementById('syncCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); 
+        
+        // --- Offscreen Cache ---
+        const staticCanvas = document.createElement('canvas');
+        const staticCtx = staticCanvas.getContext('2d');
+        
+        let width, height;
+
+        function resize() {
+            // Full screen resizing logic
+            const dpr = window.devicePixelRatio || 1;
+            
+            // Use window dimensions instead of parent container
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+
+            // Resize main canvas
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            
+            // Resize cache canvas
+            staticCanvas.width = w * dpr;
+            staticCanvas.height = h * dpr;
+
+            width = canvas.width;
+            height = canvas.height;
+            
+            renderStaticLayer();
+
+            // If stopped, we need to redraw once to ensure stats/grid are visible after resize
+            if (!isPlaying && audioCtx) {
+                // We fake a single draw call without advancing time
+                draw(true);
+            }
+        }
+        
+        function renderStaticLayer() {
+            if (!width || !height) return;
+            
+            const dpr = window.devicePixelRatio || 1;
+            const centerY = height / 2;
+            
+            const zeroX = width * 0.2;
+            
+            const scale = width / config.interval; 
+
+            // Clear
+            staticCtx.fillStyle = '#000000';
+            staticCtx.fillRect(0, 0, width, height);
+            
+            // 1. The Timeline Line
+            staticCtx.strokeStyle = '#334155';
+            staticCtx.lineWidth = 2 * dpr;
+            staticCtx.beginPath();
+            staticCtx.moveTo(0, centerY + (100 * dpr));
+            staticCtx.lineTo(width, centerY + (100 * dpr));
+            staticCtx.stroke();
+
+            // 2. Ticks (Every 100ms)
+            const tickStep = 0.1; // 100ms
+            
+            staticCtx.strokeStyle = '#1e293b'; // Darker Slate for ticks
+            staticCtx.lineWidth = 1 * dpr;
+            staticCtx.fillStyle = '#475569';
+            staticCtx.font = `${10 * dpr}px monospace`; // Smaller font for mobile
+            staticCtx.textAlign = 'center';
+
+            const drawTick = (x, label) => {
+                staticCtx.beginPath(); 
+                staticCtx.moveTo(x, centerY + (90 * dpr)); 
+                staticCtx.lineTo(x, centerY + (110 * dpr)); 
+                staticCtx.stroke();
+                
+                if (window.innerWidth > 600 || Math.abs(parseFloat(label)) % 200 === 0 || label === "0") {
+                    staticCtx.fillText(label, x, centerY + (130 * dpr));
+                }
+            };
+
+            // Forward
+            for(let t = tickStep; ; t += tickStep) {
+                const x = zeroX + (t * scale);
+                if (x > width) break;
+                drawTick(x, `+${Math.round(t*1000)}`);
+            }
+            // Backward
+            for(let t = -tickStep; ; t -= tickStep) {
+                const x = zeroX + (t * scale);
+                if (x < 0) break;
+                drawTick(x, `${Math.round(t*1000)}`);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            resize();
+        });
+
+        // --- Audio Logic ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function scheduleNote(time) {
+            if (!config.showBeep) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.frequency.value = config.beepFreq;
+            
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(config.volume, time + 0.001);
+            gainNode.gain.linearRampToValueAtTime(0, time + config.beepDuration);
+
+            osc.start(time);
+            osc.stop(time + config.beepDuration + 0.1);
+        }
+
+        function scheduler() {
+            if (!isPlaying) return;
+            while (nextNoteTime < audioCtx.currentTime + config.lookahead) {
+                scheduleNote(nextNoteTime);
+                nextNoteTime += Number(config.interval);
+            }
+            setTimeout(scheduler, 25);
+        }
+
+        // --- Control Logic ---
+        function updatePlayPauseButton() {
+            const btn = document.getElementById('playPauseBtn');
+            if (isPlaying) {
+                // STOP Style
+                btn.className = "h-14 md:h-12 px-4 md:px-6 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-400 hover:text-red-300 transition-all active:scale-95 flex flex-col items-center justify-center leading-none";
+                btn.innerHTML = `
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="hidden md:inline font-bold text-sm">Stop</span>
+                    </div>
+                    <span class="hidden md:inline font-mono text-[10px] bg-red-950/50 px-1.5 py-0.5 rounded text-red-300/80 border border-red-500/20">S</span>
+                `;
+            } else {
+                // START Style
+                btn.className = "h-14 md:h-12 px-4 md:px-6 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/50 text-sky-400 hover:text-sky-300 transition-all active:scale-95 flex flex-col items-center justify-center leading-none";
+                btn.innerHTML = `
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="hidden md:inline font-bold text-sm">Start</span>
+                    </div>
+                    <span class="hidden md:inline font-mono text-[10px] bg-sky-950/50 px-1.5 py-0.5 rounded text-sky-300/80 border border-sky-500/20">S</span>
+                `;
+            }
+        }
+
+        function toggleCalibration() {
+            if (isPlaying) stopCalibration();
+            else startCalibration();
+        }
+
+        function startCalibration() {
+            initAudio();
+            const overlay = document.getElementById('startOverlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 300);
+            
+            // NOTE: We do NOT clear userHits here anymore.
+            // userHits = []; 
+            
+            // Reset timing relative to now
+            nextNoteTime = audioCtx.currentTime + 0.1;
+            
+            resize(); 
+            isPlaying = true;
+            updatePlayPauseButton();
+            scheduler();
+            requestAnimationFrame(() => draw(false));
+        }
+
+        function stopCalibration() {
+            isPlaying = false;
+            updatePlayPauseButton();
+            // NOTE: We do NOT show the overlay anymore.
+            // Canvas remains visible with last frame.
+        }
+
+        function recordHit() {
+            if (!isPlaying || !audioCtx) return;
+
+            let delta = audioCtx.currentTime - nextNoteTime; 
+            const interval = config.interval;
+            
+            while (delta > interval / 2) delta -= interval;
+            while (delta < -interval / 2) delta += interval;
+            
+            const delayMs = Math.round(delta * 1000);
+            
+            userHits.push(delayMs);
+            if (userHits.length > 10) userHits.shift(); 
+        }
+
+        function clearHits() {
+            userHits = [];
+            // If stopped, we need to redraw to clear the hits from screen
+            if (!isPlaying) draw(true);
+        }
+
+        // --- Visual Render Logic ---
+        function draw(force = false) {
+            if (!isPlaying && !force) return;
+
+            if (!audioCtx) {
+                if (isPlaying) requestAnimationFrame(() => draw(false));
+                return;
+            }
+
+            const dpr = window.devicePixelRatio || 1;
+
+            // Sync Logic
+            let activeTarget = nextNoteTime;
+            while (activeTarget - audioCtx.currentTime > config.interval) {
+                activeTarget -= config.interval;
+            }
+            const remaining = activeTarget - audioCtx.currentTime;
+            
+            // If we are forced to draw while stopped, keeping the phase correct is tricky 
+            // because currentTime keeps moving even if we conceptually "stopped".
+            // However, for the purpose of showing stats, the phase (ball position) matters less 
+            // than the stats visibility.
+            // Let's just calculate phase normally.
+            
+            const phase = 1.0 - (remaining / config.interval); // 0 -> 1
+            
+            let impact = 0;
+            if (phase > 0.9) impact = (phase - 0.9) * 10;
+            else if (phase < 0.1) impact = 1 - (phase * 10);
+
+            // Blit Cache
+            ctx.drawImage(staticCanvas, 0, 0);
+
+            // Setup
+            const centerY = height / 2;
+            const zeroX = width * 0.2;
+            const scale = width / config.interval; 
+            
+            ctx.globalCompositeOperation = 'lighter';
+
+            // 1. Shockwave
+            if (impact > 0.1) {
+                const radius = (10 + (impact * 100)) * dpr;
+                const shockGrad = ctx.createRadialGradient(zeroX, centerY + (100*dpr), radius * 0.8, zeroX, centerY + (100*dpr), radius);
+                shockGrad.addColorStop(0, `rgba(239, 68, 68, 0)`);
+                shockGrad.addColorStop(0.5, `rgba(239, 68, 68, ${impact * 0.3})`);
+                shockGrad.addColorStop(1, `rgba(239, 68, 68, 0)`);
+                
+                ctx.fillStyle = shockGrad;
+                ctx.beginPath();
+                ctx.arc(zeroX, centerY + (100*dpr), radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 2. Zero Marker
+            const isBeatHigh = impact > 0.5;
+            
+            ctx.globalCompositeOperation = 'source-over';
+            
+            const activeColor = isBeatHigh ? '#ef4444' : '#38bdf8';
+            const markerHeight = (80 * dpr) + (impact * 20 * dpr);
+            
+            ctx.strokeStyle = activeColor;
+            ctx.lineWidth = (4 * dpr) + (impact * 6 * dpr);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(zeroX, centerY + (100*dpr) - (markerHeight/2)); 
+            ctx.lineTo(zeroX, centerY + (100*dpr) + (markerHeight/2)); 
+            ctx.stroke();
+            
+            ctx.fillStyle = activeColor;
+            ctx.font = `bold ${(16 + (impact * 4)) * dpr}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.fillText("0ms", zeroX, centerY + (160 * dpr) + (impact * 5 * dpr));
+
+            // 3. Sweeper (Rounded Red Line)
+            const sweeperOffset = -remaining; 
+            let sweeperX = zeroX + (sweeperOffset * scale);
+            const ghostOffset = sweeperOffset + config.interval;
+            const ghostX = zeroX + (ghostOffset * scale);
+            
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 4 * dpr;
+            ctx.strokeStyle = '#ef4444';
+
+            const drawSweeper = (x) => {
+                ctx.beginPath();
+                // Vertical range matching approximately the tick area
+                ctx.moveTo(x, centerY + (60 * dpr));
+                ctx.lineTo(x, centerY + (140 * dpr));
+                ctx.stroke();
+            };
+
+            drawSweeper(sweeperX);
+
+            if (ghostX < width) {
+                drawSweeper(ghostX);
+            }
+
+            // 4. Hit Markers
+            if (userHits.length > 0) {
+                const sum = userHits.reduce((a, b) => a + b, 0);
+                const avg = Math.round(sum / userHits.length);
+                const avgX = zeroX + ((avg / 1000) * scale);
+
+                // Avg Triangle
+                ctx.fillStyle = '#10b981'; 
+                ctx.beginPath();
+                ctx.moveTo(avgX, centerY + (50 * dpr));
+                ctx.lineTo(avgX - (6 * dpr), centerY + (38 * dpr));
+                ctx.lineTo(avgX + (6 * dpr), centerY + (38 * dpr));
+                ctx.fill();
+                
+                ctx.fillStyle = '#10b981';
+                ctx.font = `bold ${10 * dpr}px monospace`;
+                ctx.fillText("AVG", avgX, centerY + (32 * dpr));
+
+                // Individual Hits
+                userHits.forEach((hit, index) => {
+                    const hitX = zeroX + ((hit / 1000) * scale);
+                    const isRecent = index === userHits.length - 1;
+                    
+                    ctx.fillStyle = isRecent ? '#ffffff' : 'rgba(255,255,255,0.4)';
+                    ctx.font = `${10 * dpr}px monospace`;
+                    
+                    ctx.fillRect(hitX - (1 * dpr), centerY + (95 * dpr), 2 * dpr, 10 * dpr);
+                    ctx.fillText(index + 1, hitX, centerY + (90 * dpr));
+                });
+            }
+
+            // 5. Ball (Crisp & Solid)
+            if (config.showBall) {
+                const bounceHeight = 250 * dpr;
+                const floorY = centerY + (100 * dpr);
+                const yFactor = Math.abs(Math.sin(phase * Math.PI));
+                const ballY = floorY - (yFactor * bounceHeight) - (15 * dpr);
+                const ballRadius = 15 * dpr;
+
+                const c = isBeatHigh ? '#ef4444' : '#38bdf8';
+                ctx.fillStyle = c;
+                
+                ctx.beginPath();
+                ctx.arc(zeroX, ballY, ballRadius, 0, Math.PI * 2); 
+                ctx.fill();
+            }
+
+             // 6. Stats Overlay
+            const tableX = width - (40 * dpr);
+            let currentY = 50 * dpr;
+
+            // Draw Average Big
+            if (userHits.length > 0) {
+                const sum = userHits.reduce((a, b) => a + b, 0);
+                const avg = Math.round(sum / userHits.length);
+                const sign = avg > 0 ? "+" : "";
+                
+                ctx.textAlign = 'right';
+                
+                ctx.fillStyle = '#64748b'; 
+                ctx.font = `bold ${12 * dpr}px monospace`; 
+                ctx.fillText("AVERAGE AUDIO DELAY", tableX, currentY);
+                currentY += 45 * dpr;
+                
+                ctx.font = `bold ${56 * dpr}px monospace`;
+                if (Math.abs(avg) < 50) ctx.fillStyle = '#10b981'; 
+                else if (Math.abs(avg) < 100) ctx.fillStyle = '#facc15'; 
+                else ctx.fillStyle = '#ef4444'; 
+                
+                ctx.fillText(`${sign}${avg} ms`, tableX, currentY);
+                currentY += 40 * dpr;
+            } else {
+                 ctx.textAlign = 'right';
+                 ctx.fillStyle = '#334155';
+                 ctx.font = `bold ${12 * dpr}px monospace`;
+                 ctx.fillText("AVERAGE AUDIO DELAY", tableX, currentY);
+                 ctx.font = `bold ${56 * dpr}px monospace`;
+                 ctx.fillText("--", tableX, currentY + (45 * dpr));
+                 currentY += 85 * dpr;
+            }
+
+            // Draw History
+            if (userHits.length > 0) {
+                const lineHeight = 20 * dpr;
+                ctx.textAlign = 'right';
+                ctx.font = `bold ${12 * dpr}px monospace`;
+                ctx.fillStyle = '#64748b';
+                ctx.fillText("LAST 10 HITS", tableX, currentY);
+                currentY += 10 * dpr;
+                
+                ctx.font = `${13 * dpr}px monospace`;
+                userHits.slice().reverse().forEach((hit, index) => {
+                    const y = currentY + (20 * dpr) + (index * lineHeight);
+                    const sign = hit > 0 ? "+" : "";
+                    
+                    if (Math.abs(hit) < 50) ctx.fillStyle = '#10b981'; 
+                    else if (Math.abs(hit) < 100) ctx.fillStyle = '#facc15'; 
+                    else ctx.fillStyle = '#ef4444'; 
+                    
+                    ctx.fillText(`${sign}${hit} ms`, tableX, y);
+                });
+            }
+
+            if (isPlaying) {
+                requestAnimationFrame(() => draw(false));
+            }
+        }
+
+        // --- UI Handlers ---
+        const startBtn = document.getElementById('startBtn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const triggerHitBtn = document.getElementById('triggerHitBtn');
+        const clearHitsBtn = document.getElementById('clearHitsBtn');
+        const intervalSlider = document.getElementById('intervalSlider');
+        const intervalDisplay = document.getElementById('intervalDisplay');
+        const volumeSlider = document.getElementById('volumeSlider');
+
+        // Initial State
+        updatePlayPauseButton();
+
+        startBtn.addEventListener('click', startCalibration);
+        
+        playPauseBtn.addEventListener('click', toggleCalibration);
+
+        // Touch handling
+        triggerHitBtn.addEventListener('click', (e) => {
+             e.preventDefault(); 
+             recordHit();
+             triggerHitBtn.blur();
+        });
+        
+        clearHitsBtn.addEventListener('click', () => {
+            clearHits();
+            clearHitsBtn.blur();
+        });
+
+        intervalSlider.addEventListener('input', (e) => {
+            const newInterval = parseFloat(e.target.value);
+            const oldInterval = config.interval;
+            config.interval = newInterval;
+            intervalDisplay.innerText = newInterval.toFixed(1) + 's';
+
+            renderStaticLayer();
+
+            if (isPlaying && audioCtx) {
+                const timeToTarget = nextNoteTime - audioCtx.currentTime;
+                const newTimeToTarget = timeToTarget * (newInterval / oldInterval);
+                nextNoteTime = audioCtx.currentTime + newTimeToTarget;
+            }
+            
+            if (!isPlaying) draw(true);
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            config.volume = parseFloat(e.target.value);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 's') {
+                toggleCalibration();
+            }
+
+            if (!isPlaying) return;
+
+            if (e.code === 'Space' || e.code === 'Enter') {
+                e.preventDefault(); 
+                recordHit();
+            }
+            if (e.key === 'c' || e.key === 'C') {
+                clearHits();
+            }
+        });
+
+        window.addEventListener('resize', resize);
+        // Initial setup
+        resize();
+
+    </script>
+</body>
+</html>
