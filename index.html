@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <!-- SEO & Metadata -->
-    <title>Audio Latency Tester - Bluetooth Headphone Delay Test</title>
+    <title>Audio Latency Tester</title>
     <meta name="description" content="Measure the exact audio delay (latency) of your Bluetooth headphones, speakers, or mobile device. Free online audio/video synchronization test tool for accurate A/V sync readings.">
     <meta name="keywords" content="bluetooth headphone audio delay testing, audio latency test, av sync test, bluetooth lag test, headphone delay test, audio video sync, sound delay, speaker latency">
     <meta name="robots" content="index, follow">
@@ -361,10 +361,6 @@
             overlay.style.opacity = '0';
             setTimeout(() => overlay.style.display = 'none', 300);
             
-            // NOTE: We do NOT clear userHits here anymore.
-            // userHits = []; 
-            
-            // Reset timing relative to now
             nextNoteTime = audioCtx.currentTime + 0.1;
             
             resize(); 
@@ -377,8 +373,7 @@
         function stopCalibration() {
             isPlaying = false;
             updatePlayPauseButton();
-            // NOTE: We do NOT show the overlay anymore.
-            // Canvas remains visible with last frame.
+            draw(true); // Force redraw to clean the screen
         }
 
         function recordHit() {
@@ -412,96 +407,14 @@
             }
 
             const dpr = window.devicePixelRatio || 1;
-
-            // Sync Logic
-            let activeTarget = nextNoteTime;
-            while (activeTarget - audioCtx.currentTime > config.interval) {
-                activeTarget -= config.interval;
-            }
-            const remaining = activeTarget - audioCtx.currentTime;
-            
-            // If we are forced to draw while stopped, keeping the phase correct is tricky 
-            // because currentTime keeps moving even if we conceptually "stopped".
-            // However, for the purpose of showing stats, the phase (ball position) matters less 
-            // than the stats visibility.
-            // Let's just calculate phase normally.
-            
-            const phase = 1.0 - (remaining / config.interval); // 0 -> 1
-            
-            let impact = 0;
-            if (phase > 0.9) impact = (phase - 0.9) * 10;
-            else if (phase < 0.1) impact = 1 - (phase * 10);
-
-            // Blit Cache
-            ctx.drawImage(staticCanvas, 0, 0);
-
-            // Setup
             const centerY = height / 2;
             const zeroX = width * 0.2;
             const scale = width / config.interval; 
-            
-            ctx.globalCompositeOperation = 'lighter';
 
-            // 1. Shockwave
-            if (impact > 0.1) {
-                const radius = (10 + (impact * 100)) * dpr;
-                const shockGrad = ctx.createRadialGradient(zeroX, centerY + (100*dpr), radius * 0.8, zeroX, centerY + (100*dpr), radius);
-                shockGrad.addColorStop(0, `rgba(239, 68, 68, 0)`);
-                shockGrad.addColorStop(0.5, `rgba(239, 68, 68, ${impact * 0.3})`);
-                shockGrad.addColorStop(1, `rgba(239, 68, 68, 0)`);
-                
-                ctx.fillStyle = shockGrad;
-                ctx.beginPath();
-                ctx.arc(zeroX, centerY + (100*dpr), radius, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            // 1. Blit Static Grid
+            ctx.drawImage(staticCanvas, 0, 0);
 
-            // 2. Zero Marker
-            const isBeatHigh = impact > 0.5;
-            
-            ctx.globalCompositeOperation = 'source-over';
-            
-            const activeColor = isBeatHigh ? '#ef4444' : '#38bdf8';
-            const markerHeight = (80 * dpr) + (impact * 20 * dpr);
-            
-            ctx.strokeStyle = activeColor;
-            ctx.lineWidth = (4 * dpr) + (impact * 6 * dpr);
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(zeroX, centerY + (100*dpr) - (markerHeight/2)); 
-            ctx.lineTo(zeroX, centerY + (100*dpr) + (markerHeight/2)); 
-            ctx.stroke();
-            
-            ctx.fillStyle = activeColor;
-            ctx.font = `bold ${(16 + (impact * 4)) * dpr}px monospace`;
-            ctx.textAlign = 'center';
-            ctx.fillText("0ms", zeroX, centerY + (160 * dpr) + (impact * 5 * dpr));
-
-            // 3. Sweeper (Rounded Red Line)
-            const sweeperOffset = -remaining; 
-            let sweeperX = zeroX + (sweeperOffset * scale);
-            const ghostOffset = sweeperOffset + config.interval;
-            const ghostX = zeroX + (ghostOffset * scale);
-            
-            ctx.lineCap = 'round';
-            ctx.lineWidth = 4 * dpr;
-            ctx.strokeStyle = '#ef4444';
-
-            const drawSweeper = (x) => {
-                ctx.beginPath();
-                // Vertical range matching approximately the tick area
-                ctx.moveTo(x, centerY + (60 * dpr));
-                ctx.lineTo(x, centerY + (140 * dpr));
-                ctx.stroke();
-            };
-
-            drawSweeper(sweeperX);
-
-            if (ghostX < width) {
-                drawSweeper(ghostX);
-            }
-
-            // 4. Hit Markers
+            // 2. Draw Hit Markers (Visible even when stopped)
             if (userHits.length > 0) {
                 const sum = userHits.reduce((a, b) => a + b, 0);
                 const avg = Math.round(sum / userHits.length);
@@ -532,23 +445,7 @@
                 });
             }
 
-            // 5. Ball (Crisp & Solid)
-            if (config.showBall) {
-                const bounceHeight = 250 * dpr;
-                const floorY = centerY + (100 * dpr);
-                const yFactor = Math.abs(Math.sin(phase * Math.PI));
-                const ballY = floorY - (yFactor * bounceHeight) - (15 * dpr);
-                const ballRadius = 15 * dpr;
-
-                const c = isBeatHigh ? '#ef4444' : '#38bdf8';
-                ctx.fillStyle = c;
-                
-                ctx.beginPath();
-                ctx.arc(zeroX, ballY, ballRadius, 0, Math.PI * 2); 
-                ctx.fill();
-            }
-
-             // 6. Stats Overlay
+            // 3. Draw Stats Text (Visible even when stopped)
             const tableX = width - (40 * dpr);
             let currentY = 50 * dpr;
 
@@ -582,7 +479,7 @@
                  currentY += 85 * dpr;
             }
 
-            // Draw History
+            // Draw History List
             if (userHits.length > 0) {
                 const lineHeight = 20 * dpr;
                 ctx.textAlign = 'right';
@@ -604,8 +501,120 @@
                 });
             }
 
+            // 4. Dynamic Elements (Only if playing)
             if (isPlaying) {
+                // Sync Logic
+                let activeTarget = nextNoteTime;
+                
+                // Fix: Handle case where nextNoteTime is in the past (e.g. stopped)
+                if (activeTarget < audioCtx.currentTime) {
+                    const diff = audioCtx.currentTime - activeTarget;
+                    const safeInterval = Math.max(0.01, config.interval);
+                    const intervalsPassed = Math.floor(diff / safeInterval);
+                    activeTarget += (intervalsPassed + 1) * safeInterval;
+                }
+
+                while (activeTarget - audioCtx.currentTime > config.interval) {
+                    activeTarget -= config.interval;
+                }
+                const remaining = activeTarget - audioCtx.currentTime;
+                const phase = 1.0 - (remaining / config.interval); // 0 -> 1
+                
+                let impact = 0;
+                if (phase > 0.9) impact = (phase - 0.9) * 10;
+                else if (phase < 0.1) impact = 1 - (phase * 10);
+                impact = Math.max(0, Math.min(1, impact));
+
+                ctx.globalCompositeOperation = 'lighter';
+
+                // Shockwave
+                if (impact > 0.1) {
+                    const radius = (10 + (impact * 100)) * dpr;
+                    const shockGrad = ctx.createRadialGradient(zeroX, centerY + (100*dpr), radius * 0.8, zeroX, centerY + (100*dpr), radius);
+                    shockGrad.addColorStop(0, `rgba(239, 68, 68, 0)`);
+                    shockGrad.addColorStop(0.5, `rgba(239, 68, 68, ${impact * 0.3})`);
+                    shockGrad.addColorStop(1, `rgba(239, 68, 68, 0)`);
+                    
+                    ctx.fillStyle = shockGrad;
+                    ctx.beginPath();
+                    ctx.arc(zeroX, centerY + (100*dpr), radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Zero Marker (Dynamic)
+                const isBeatHigh = impact > 0.5;
+                ctx.globalCompositeOperation = 'source-over';
+                const activeColor = isBeatHigh ? '#ef4444' : '#38bdf8';
+                const markerHeight = (80 * dpr) + (impact * 20 * dpr);
+                
+                ctx.strokeStyle = activeColor;
+                ctx.lineWidth = (4 * dpr) + (impact * 6 * dpr);
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(zeroX, centerY + (100*dpr) - (markerHeight/2)); 
+                ctx.lineTo(zeroX, centerY + (100*dpr) + (markerHeight/2)); 
+                ctx.stroke();
+                
+                ctx.fillStyle = activeColor;
+                ctx.font = `bold ${(16 + (impact * 4)) * dpr}px monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillText("0ms", zeroX, centerY + (160 * dpr) + (impact * 5 * dpr));
+
+                // Sweeper
+                const sweeperOffset = -remaining; 
+                let sweeperX = zeroX + (sweeperOffset * scale);
+                const ghostOffset = sweeperOffset + config.interval;
+                const ghostX = zeroX + (ghostOffset * scale);
+                
+                ctx.lineCap = 'round';
+                ctx.lineWidth = 4 * dpr;
+                ctx.strokeStyle = '#ef4444';
+
+                const drawSweeper = (x) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x, centerY + (60 * dpr));
+                    ctx.lineTo(x, centerY + (140 * dpr));
+                    ctx.stroke();
+                };
+
+                drawSweeper(sweeperX);
+                if (ghostX < width) drawSweeper(ghostX);
+
+                // Ball
+                if (config.showBall) {
+                    const bounceHeight = 250 * dpr;
+                    const floorY = centerY + (100 * dpr);
+                    const yFactor = Math.abs(Math.sin(phase * Math.PI));
+                    const ballY = floorY - (yFactor * bounceHeight) - (15 * dpr);
+                    const ballRadius = 15 * dpr;
+
+                    const c = isBeatHigh ? '#ef4444' : '#38bdf8';
+                    ctx.fillStyle = c;
+                    
+                    ctx.beginPath();
+                    ctx.arc(zeroX, ballY, ballRadius, 0, Math.PI * 2); 
+                    ctx.fill();
+                }
+
                 requestAnimationFrame(() => draw(false));
+
+            } else {
+                // 5. Idle State (Stopped)
+                // Just draw static Zero Marker
+                ctx.globalCompositeOperation = 'source-over';
+                
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 4 * dpr;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(zeroX, centerY + (100*dpr) - (40*dpr)); 
+                ctx.lineTo(zeroX, centerY + (100*dpr) + (40*dpr)); 
+                ctx.stroke();
+                
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = `bold ${16 * dpr}px monospace`;
+                ctx.textAlign = 'center';
+                ctx.fillText("0ms", zeroX, centerY + (160 * dpr));
             }
         }
 
