@@ -2,6 +2,8 @@
 
 A precise, web-based tool designed to measure the audio delay (latency) of Bluetooth headphones and speakers. Built with the Web Audio API for sample-accurate timing and HTML5 Canvas for high-performance visuals.
 
+Tool Link: [Audio Latency Tester](https://yuya-iwabuchi.github.io/audio-latency-tester/)
+
 Originally vibe-coded using [Gemini Canvas](https://deepmind.google/technologies/gemini/).
 
 ## 🚀 Features
@@ -32,6 +34,6 @@ Created by Yuya Iwabuchi
 - [GitHub Profile](https://github.com/yuya-iwabuchi)
 - [LinkedIn](https://www.linkedin.com/in/yuyai)
 
-📄 License
+## 📄 License
 
 Open source under the MIT License.
